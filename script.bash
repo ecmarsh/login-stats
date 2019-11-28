@@ -1,6 +1,6 @@
-#! /bin/bash
+#!/bin/bash
 
-# Reads output from last command on on STDIN.
+# Reads output from last command on STDIN.
 
 # If -c is given, program outputs lines with user and login count,
 # sorted by login count.
@@ -12,11 +12,14 @@
 
 # USAGE: last | bash script.bash [-ct]
 
-declare -A user_login_map # { ["username"]: login_counts || total_minutes }
 
-function print_map() {
+declare -A user_login_map # { ["username"]: login_counts||total_minutes }
 
-  # Prints key and value of user_login_map sorted, in descending order.
+
+function print_sorted_map() {
+
+  # Prints key and value of user_login_map,
+  # sorted by value in descending order.
 
   local TITLE=$1; local UNIT=$2
 
@@ -36,31 +39,32 @@ function print_login_counts() {
   # Outputs lines with username and total login count.
 
   while read -r line; do
+
     # Ignore users still logged in and that aren't 'fa19u##' or 'stuart'.
     [[ "$line" =~ in$ || (! "$line" =~ ^[fs]) ]] && continue
 
-    # Increment count of the user.
+    # Increment count of the user in associative array.
     user=$(awk '{print $1}' <<<"$line")
     ((user_login_map["$user"]++))
 
   done
 
   # Print each username and their total number of sessions.
-  print_map 'TOTAL USER LOGIN COUNTS' 'logins'
+  print_sorted_map 'TOTAL USER LOGIN COUNTS' 'logins'
 
   return
 }
 
-function print_login_time() {
+function print_login_times() {
 
-  # Outputs lines with user and total login time.
+  # Outputs lines with username and total login time.
 
   while read -r line; do
 
     # Ignore users still logged in and that aren't 'fa19u##' or 'stuart'.
-    [[ "$line" =~ in$ || (! "$line" =~ ^[rfs]) ]] && continue
+    [[ "$line" =~ in$ || (! "$line" =~ ^[fs]) ]] && continue
 
-    # Store the username and the last field, session time, stripped of parens.
+    # Store the username, and the last field, session time, stripped of parens.
     user=$(awk '{ print $1 }' <<<"$line")
     sess_time=$(echo "$line" | awk '{ print $NF }' | sed 's/[()]//g')
 
@@ -69,7 +73,7 @@ function print_login_time() {
     typeset -i minutes=0
 
     # If session has a day, add converted days as minutes (days * 60 * 24)
-    # to total session, and update session_time to only HH:MM portion.
+    # to total session, and update session time value to be only HH:MM portion.
     if [[ $sess_time =~ \+ ]]; then
       IFS=" " read -r minutes sess_time <<<"$(awk -F+ '{ print $1 * 60 * 24 ; print $2 }' <<<"$sess_time")"
     fi
@@ -83,7 +87,7 @@ function print_login_time() {
   done
 
   # Print each username and their total login minutes.
-  print_map 'TOTAL LOGGED IN TIME PER USER' 'minutes'
+  print_sorted_map 'TOTAL LOGGED IN TIME PER USER' 'minutes'
 
   return
 }
@@ -96,7 +100,7 @@ function print_all_stdin() {
 # MAIN: call appropriate handler according to flag.
 case $1 in
   -c) print_login_counts  ;;
-  -t) print_login_time    ;;
+  -t) print_login_times   ;;
    *) print_all_stdin     ;;
 esac
 
